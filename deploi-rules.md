@@ -14,9 +14,11 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 | Hébergeur | o2switch (mutualisé cPanel) |
 | Runtime | Node.js 22.x LTS (ou 20.x si 22 indisponible — éviter 24.x : versions impaires non-LTS) |
 | Process manager | Phusion Passenger (via NodeJS Selector cPanel) |
-| Base de données | PostgreSQL — DB `ufaj3133_memphis` / user `ufaj3133_grememphis` |
+| Base de données | **SQLite** (fichier `memphis.db` dans l'application root — pas de BDD cPanel à créer) |
 | User cPanel | `ufaj3133` |
 | Chemins typiques | `/home/ufaj3133/new.memphiscountryclub.fr/` |
+
+> 📌 **Pourquoi SQLite et non PostgreSQL ?** o2switch ne propose que PostgreSQL 9.6 (EOL depuis 2021) et envisage de retirer le support PG. MariaDB n'a pas d'adapter Payload 3 officiel. SQLite (officiellement supporté par Payload, file-based) est l'option idéale pour ce volume d'usage.
 
 ---
 
@@ -25,11 +27,7 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 À faire **avant** le premier déploiement, dans cPanel :
 
 1. **Sous-domaine** créé et pointé sur un dossier dédié (ex. `/home/ufaj3133/new.memphiscountryclub.fr`).
-2. **Base PostgreSQL** créée via *Base de données PostgreSQL* :
-   - DB : `ufaj3133_memphis`
-   - User : `ufaj3133_grememphis` avec mot de passe fort
-   - Privilèges : ALL sur la DB
-   - Vérifier que **PostgreSQL est bien le moteur** (et pas MySQL). Si la BDD est MySQL, voir §9.
+2. **Pas de BDD à créer dans cPanel** — SQLite est un fichier local créé automatiquement par Payload au 1er démarrage. Si tu as déjà créé une BDD PostgreSQL ou MariaDB pour ce projet, tu peux la **supprimer** (elle ne sert plus).
 3. **SSL** : activer Let's Encrypt sur le sous-domaine via *SSL/TLS Status* → AutoSSL.
 4. **Accès SSH** activé (Sécurité → SSH).
 
@@ -42,9 +40,9 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 | Variable | Valeur exemple | Notes |
 |---|---|---|
 | `NODE_ENV` | `production` | Géré aussi par « Application mode = Production » |
-| `DATABASE_URI` | `postgresql://ufaj3133_grememphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis` | User `_grememphis`, DB `_memphis`. Encoder le mdp si caractères spéciaux. |
+| `DATABASE_URI` | `file:./memphis.db` | Chemin **relatif à l'application root**. Le fichier est créé automatiquement par Payload au 1er démarrage. |
 | `PAYLOAD_SECRET` | (96 hex aléatoires) | Générer avec `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. **Ne jamais réutiliser** entre dev et prod. |
-| `PAYLOAD_PUSH` | `true` au premier déploiement, puis `false` | **Crée automatiquement le schéma BDD au démarrage** sur une base vierge. À désactiver dès que les tables existent (passage en mode migration). |
+| `PAYLOAD_PUSH` | `true` au premier déploiement, puis `false` | **Crée automatiquement le schéma au démarrage**. À désactiver une fois les tables créées (passage en mode migration explicite). |
 | `NEXT_PUBLIC_SERVER_URL` | `https://new.memphiscountryclub.fr` | Public — utilisé par metadataBase |
 | `PAYLOAD_PUBLIC_SERVER_URL` | `https://new.memphiscountryclub.fr` | Optionnel — admin URL |
 
@@ -171,11 +169,13 @@ touch tmp/restart.txt    # Passenger redémarre au prochain hit
 
 1. **Aucun secret en repo** — `PAYLOAD_SECRET`, mots de passe BDD, clés API : toujours dans *Environment variables* du NodeJS Selector.
 2. **Différer dev et prod** — `PAYLOAD_SECRET` prod ≠ dev (le secret signe les sessions ; le partager = compromettre les sessions admin).
-3. **Backups** — programmer dans cPanel → *Cron Jobs* un dump quotidien :
+3. **Backups SQLite + médias** — programmer dans cPanel → *Cron Jobs* un backup quotidien :
 
    ```cron
-   0 3 * * * /usr/bin/pg_dump -U ufaj3133_grememphis ufaj3133_memphis | gzip > /home/ufaj3133/backups/memphis-$(date +\%F).sql.gz && find /home/ufaj3133/backups -mtime +30 -delete
+   0 3 * * * mkdir -p /home/ufaj3133/backups && sqlite3 /home/ufaj3133/new.memphiscountryclub.fr/memphis.db ".backup '/home/ufaj3133/backups/memphis-$(date +\%F).db'" && tar czf /home/ufaj3133/backups/uploads-$(date +\%F).tar.gz -C /home/ufaj3133/new.memphiscountryclub.fr uploads && find /home/ufaj3133/backups -mtime +30 -delete
    ```
+
+   La commande `.backup` de SQLite est sûre **même pendant que l'app tourne** (snapshot atomique). On archive aussi le dossier `uploads/`. Rétention : 30 jours.
 
 4. **HTTPS forcé** — activer la redirection HTTPS dans cPanel *Domains* après émission du certificat.
 5. **Uploads sans limite** — vérifier que `LimitRequestBody 0` est dans `.htaccess` (voir `.htaccess.example`), et que `client_max_body_size` n'est pas restreint par o2switch côté reverse-proxy (à signaler au support si dépassement 100 MB pour gros fichiers vidéo).
@@ -188,7 +188,8 @@ touch tmp/restart.txt    # Passenger redémarre au prochain hit
 | Symptôme | Cause probable | Fix |
 |---|---|---|
 | `503 Application failed to start` | Erreur dans `server.js` ou build manquant | SSH → activer venv → consulter `stderr.log` ; relancer `npm run deploy:build` |
-| `cannot connect to Postgres` | DB inaccessible ou URI mal formée | Vérifier `DATABASE_URI` (host = `localhost`, port 5432), tester avec `psql -h localhost -U ufaj3133_grememphis -d ufaj3133_memphis` |
+| `SQLITE_CANTOPEN` ou DB introuvable | Chemin `DATABASE_URI` incorrect ou permissions fichier | Vérifier que `DATABASE_URI=file:./memphis.db` (chemin relatif app root), tester avec `sqlite3 memphis.db ".tables"` |
+| Erreur disque plein | Trop de médias uploadés | Vérifier l'espace disque cPanel, archiver/déplacer les vieux uploads |
 | `missing secret key` | `PAYLOAD_SECRET` absent | Ajouter dans Environment variables + Restart |
 | Images 404 | `public/` mal uploadé OU `next.config.mjs` remotePatterns manquant | Vérifier que le dossier `public/icons/` existe, ajouter le domaine au config |
 | Upload bloqué > 50 MB | `LimitRequestBody` ou reverse proxy o2switch | Vérifier `.htaccess`, contacter le support si problème reste |
@@ -199,34 +200,25 @@ touch tmp/restart.txt    # Passenger redémarre au prochain hit
 
 ---
 
-## 9. Cas où la BDD o2switch est MySQL (pas PostgreSQL)
+## 9. Notes SQLite — bonnes pratiques
 
-Si le panneau cPanel n'expose que MySQL (pas de section PostgreSQL), deux options :
+**Mode WAL (Write-Ahead Logging)** — Payload + libsql active automatiquement le mode WAL au démarrage. Cela permet aux lectures de continuer pendant les écritures (utile quand un admin édite et qu'un visiteur consulte). Les fichiers annexes `memphis.db-wal` et `memphis.db-shm` apparaissent à côté du `.db` principal — c'est normal, ne pas les supprimer manuellement.
 
-**Option A — PostgreSQL externe (Supabase, recommandée)**
-Garder le projet tel quel. Créer un projet sur supabase.com → copier la *Connection string* (transaction pooler) → coller dans `DATABASE_URI`. Aucune modif du code requise.
+**Concurrence d'écriture** — SQLite sérialise les écritures (1 writer à la fois). Avec 4 rôles éditeurs max et un usage typique d'asso (quelques écritures par jour), aucune contention attendue. Si un jour le site grossit à plusieurs dizaines de rédacteurs simultanés, on migrera vers PostgreSQL externe (Supabase, Neon).
 
-**Option B — Switch vers SQLite (file-based)**
-Pour shared hosting strict. Remplacer dans `package.json` :
+**Migration future SQLite → PostgreSQL** — possible via la Local API Payload :
+1. Export en JSON de toutes les collections via un script Node
+2. Switch d'adapter dans `payload.config.ts`
+3. Re-import via Local API
 
-```diff
-- "@payloadcms/db-postgres": "^3.0.0",
-+ "@payloadcms/db-sqlite": "^3.0.0",
+**Sauvegarde locale rapide** :
+
+```bash
+# Sur le serveur, snapshot atomique pendant que l'app tourne
+sqlite3 memphis.db ".backup memphis-backup.db"
 ```
 
-Et dans `src/payload.config.ts` :
-
-```ts
-import { sqliteAdapter } from '@payloadcms/db-sqlite'
-// ...
-db: sqliteAdapter({
-  client: { url: process.env.DATABASE_URI || 'file:./memphis.db' },
-}),
-```
-
-Puis `DATABASE_URI=file:./memphis.db` en env var. Le fichier `memphis.db` sera créé dans l'application root.
-
-**Important** : MySQL n'est pas officiellement supporté par Payload 3 — ne pas tenter cette voie.
+**Pourquoi pas PostgreSQL (rappel)** : o2switch propose PG 9.6 (EOL 2021, incompatible Drizzle/Payload 14+) et envisage de retirer le support PG. MariaDB n'a pas d'adapter Payload 3.
 
 ---
 

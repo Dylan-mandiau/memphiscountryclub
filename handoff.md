@@ -15,7 +15,9 @@ Site vitrine + WebApp PWA pour l'association de danse country Memphis Country Cl
 Scaffold complet & testé en local. **Objectif immédiat : premier déploiement sur `https://new.memphiscountryclub.fr`** (o2switch, BDD PostgreSQL créée).
 
 **Stack / Outils impliqués :**
-Next.js 15.4 + Payload CMS 3 (intégré natif) + PostgreSQL + React 19 + Tailwind 3 + TypeScript strict + Fraunces/Inter (Google Fonts). Hébergement : o2switch (cPanel + CloudLinux NodeJS Selector + Phusion Passenger).
+Next.js 15.4 + Payload CMS 3 (intégré natif) + **SQLite** (file-based) + React 19 + Tailwind 3 + TypeScript strict + Fraunces/Inter. Hébergement : o2switch (cPanel + CloudLinux NodeJS Selector + Phusion Passenger).
+
+> 📌 BDD : SQLite choisie après que o2switch a confirmé que leur PostgreSQL est en 9.6 (EOL) et envisage d'être retirée. MariaDB n'a pas d'adapter Payload 3.
 
 ---
 
@@ -38,7 +40,9 @@ Next.js 15.4 + Payload CMS 3 (intégré natif) + PostgreSQL + React 19 + Tailwin
 - [x] Direction visuelle documentée et révisée : [website-design.md](website-design.md)
 - [x] Spec produit complet : [CLAUDE_SPECS.md](CLAUDE_SPECS.md)
 - [x] Seed script : 3 niveaux + 8 saisons (2017-2026 sans 2020-2021) + 6 catégories d'albums
-- [x] BDD PostgreSQL créée sur o2switch : `ufaj3133_memphis` (7.20 MB allocated)
+- [x] **Migration adapter** : Postgres → SQLite (@payloadcms/db-sqlite v3.84.1)
+- [x] BDD locale SQLite testée OK : `memphis.db` créé automatiquement, admin Payload répond, schéma poussé
+- [x] BDD PostgreSQL chez o2switch (`ufaj3133_memphis`) **à supprimer** par Dylan (plus utilisée)
 
 ---
 
@@ -49,8 +53,8 @@ Next.js 15.4 + Payload CMS 3 (intégré natif) + PostgreSQL + React 19 + Tailwin
 - [x] ~~**Cleanup doublon `deploy-rules.md`**~~ — ✅ supprimé (était une vieille archi en 2 apps séparées)
 - [x] ~~**Activer `push` Payload pour le premier déploiement**~~ — ✅ `payload.config.ts` accepte désormais `PAYLOAD_PUSH=true` via env
 - [x] ~~**Mettre à jour `.env.example` + `deploi-rules.md`**~~ — ✅ nouvelle var `PAYLOAD_PUSH` documentée
-- [x] ~~**Vérifier le user PostgreSQL**~~ — ✅ confirmé : DB `ufaj3133_memphis`, user `ufaj3133_grememphis`
-- [ ] **Récupérer le mot de passe** du user `ufaj3133_grememphis` pour construire `DATABASE_URI`  ← **action Dylan**
+- [x] ~~**Crédentials PostgreSQL**~~ — ✅ abandonné : on est passé à SQLite (file-based, aucun mdp BDD à gérer)
+- [ ] **Supprimer la BDD PostgreSQL** `ufaj3133_memphis` dans cPanel (plus utilisée)  ← **action Dylan (non bloquant)**
 - [x] ~~**Repo Git local initialisé**~~ — ✅ branche `main`, commit initial `756bd6f` (72 fichiers, 0 secret leaké)
 - [ ] **Repo Git distant** (GitHub privé recommandé) pour permettre `git clone` depuis o2switch  ← **action Dylan**
 - [ ] **Création de l'application Node.js dans cPanel** (formulaire NodeJS Selector)
@@ -101,11 +105,15 @@ scripts/seed.ts                — Seed niveaux / saisons / catégories
 **Variables / configs importantes (à renseigner dans NodeJS Selector → Environment variables) :**
 
 ```
-NODE_ENV               = production
-DATABASE_URI           = postgresql://ufaj3133_grememphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis
-PAYLOAD_SECRET         = <96 hex aléatoires, généré spécifiquement pour la prod>
-NEXT_PUBLIC_SERVER_URL = https://new.memphiscountryclub.fr
+NODE_ENV                  = production
+DATABASE_URI              = file:./memphis.db
+PAYLOAD_SECRET            = 02a60d09d9ec1f85622d048aa0527db39fcc74c27c07c7ccd325b53bec9fb4c7f2e46f92cb37c1dd5dca1b7e6ab0fcfa
+PAYLOAD_PUSH              = true     (1er deploy seulement, puis false)
+NEXT_PUBLIC_SERVER_URL    = https://new.memphiscountryclub.fr
+PAYLOAD_PUBLIC_SERVER_URL = https://new.memphiscountryclub.fr
 ```
+
+> ✅ Plus de mot de passe BDD à gérer — SQLite est un fichier local créé automatiquement.
 
 **Valeurs cPanel — création application Node.js :**
 
@@ -137,25 +145,20 @@ Vérification que `@payloadcms/db-mysql` n'existe pas → confirmation que Postg
 
 ## 6. Prochaine action immédiate 🎯
 
-> **Étapes 1 & 2 — TERMINÉES ✅**
-> - Étape 1 : pré-validation locale OK, `PAYLOAD_PUSH` env var ajoutée, doublon nettoyé
-> - Étape 2 : repo Git local initialisé, commits `756bd6f` + `b8e90ba`
+> **Étapes 1, 2 & migration SQLite — TERMINÉES ✅**
+> - Étape 1 : pré-validation locale OK, `PAYLOAD_PUSH` env var ajoutée
+> - Étape 2 : repo Git initialisé, commits `756bd6f`, `b8e90ba`, `bbdc8a0`
+> - Migration BDD : Postgres → SQLite, testée en local (memphis.db 424KB créé, admin OK, zéro erreur)
 >
-> **Étape 2.5 — Installation PostgreSQL local pour dev (en cours).**
->
-> Choix de Dylan : **EDB Installer Windows** (PG 16).
->
-> 1. Dylan télécharge et installe PG 16 depuis postgresql.org/download/windows/
-> 2. Une fois installé, Claude fournit les commandes psql pour créer la DB `memphis` + user `memphis`
-> 3. Test connexion + `npm run dev` doit charger l'admin sans erreur
->
-> **Étape 3 — Préparation infra o2switch (en parallèle).**
+> **Étape 3 — Préparation infra o2switch (en attente d'inputs Dylan).**
 >
 > Concret côté Dylan :
-> 1. **Mot de passe** du user `ufaj3133_grememphis` — à définir/récupérer dans cPanel mais **JAMAIS le partager à Claude** (sécurité). Dylan le copiera lui-même dans les Environment variables cPanel le moment venu.
-> 2. **Créer un repo GitHub privé** `memphiscountryclub` puis me donner l'URL HTTPS — ou dire si tu préfères FTP/zip
-> 3. **Vérifier dans cPanel → Sous-domaines** que `new.memphiscountryclub.fr` est bien créé et noter le **chemin du dossier racine**
-> 4. **SSH activé** dans cPanel → Sécurité → SSH
+> 1. **Créer un repo GitHub privé** `memphiscountryclub` puis me donner l'URL HTTPS — ou dire si tu préfères FTP/zip
+> 2. **Vérifier dans cPanel → Sous-domaines** que `new.memphiscountryclub.fr` est bien créé et noter le **chemin du dossier racine**
+> 3. **SSH activé** dans cPanel → Sécurité → SSH (recommandé pour `git clone`)
+> 4. **(optionnel)** Supprimer la BDD PostgreSQL `ufaj3133_memphis` dans cPanel — plus utilisée
+>
+> Plus besoin de mot de passe BDD ni d'IP whitelist : SQLite tourne en local sur o2switch.
 
 ---
 
