@@ -1,5 +1,6 @@
 import type { Where } from 'payload'
 import { tryPayload } from '@/lib/payload'
+import { withFallbackPaginated } from '@/lib/payload-fallbacks'
 import { DanseCard } from '@/components/DanseCard'
 import { FiltresDanses } from '@/components/FiltresDanses'
 
@@ -34,24 +35,35 @@ const BibliothequePage = async ({
   }
 
   const [niveauxRes, saisonsRes] = await Promise.all([
-    cms.find({ collection: 'niveaux', limit: 100, sort: 'ordre' }).catch(() => ({ docs: [] as any[] })),
-    cms.find({ collection: 'saisons', limit: 100, sort: '-annee_debut' }).catch(() => ({ docs: [] as any[] })),
+    withFallbackPaginated(
+      cms.find({ collection: 'niveaux', limit: 100, sort: 'ordre' }),
+      'danses/niveaux',
+    ),
+    withFallbackPaginated(
+      cms.find({ collection: 'saisons', limit: 100, sort: '-annee_debut' }),
+      'danses/saisons',
+    ),
   ])
 
   const where: Where = {}
   if (sp.niveau) where.niveau = { equals: sp.niveau }
   if (sp.saison) where.annee_saison = { equals: sp.saison }
-  if (sp.q) where.titre = { like: sp.q }
+  if (sp.q) {
+    // Limite la longueur du terme de recherche pour éviter une query LIKE
+    // pathologique (P1-8 du code-reviewer)
+    where.titre = { like: sp.q.slice(0, 100) }
+  }
 
-  const danses = await cms
-    .find({
+  const danses = await withFallbackPaginated(
+    cms.find({
       collection: 'danses',
       where,
       sort: 'titre',
       limit: 500,
       depth: 1,
-    })
-    .catch(() => ({ docs: [] as any[], totalDocs: 0 }))
+    }),
+    'danses/list',
+  )
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 lg:px-6">

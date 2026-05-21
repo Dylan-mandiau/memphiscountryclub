@@ -22,7 +22,15 @@ const DansePage = async ({
       depth: 2,
       limit: 1,
     })
-    .catch(() => ({ docs: [] as any[] }))
+    .catch((err: unknown) => {
+      console.warn(
+        '[danses/[slug]] find failed:',
+        (err as Error).message,
+        'slug=',
+        slug,
+      )
+      return { docs: [] as any[] }
+    })
 
   const danse = found.docs[0] as any
   if (!danse) notFound()

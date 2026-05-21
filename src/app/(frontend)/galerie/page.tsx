@@ -24,7 +24,10 @@ const GaleriePage = async () => {
       depth: 2,
       limit: 200,
     })
-    .catch(() => ({ docs: [] as any[], totalDocs: 0 }))
+    .catch((err: unknown) => {
+      console.warn('[galerie] find(albums) failed:', (err as Error).message)
+      return { docs: [] as any[], totalDocs: 0 }
+    })
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 lg:px-6">

@@ -1,17 +1,19 @@
 /**
- * Endpoint de diagnostic — accessible publiquement à /api/health
+ * Endpoint de diagnostic — protégé par token.
  *
- * Aucune donnée sensible exposée (pas de SECRET, pas de mdp, juste des booléens
- * et l'état des composants).
+ * Usage :
+ *   GET /api/health?token=<HEALTH_TOKEN>
+ * ou via header :
+ *   X-Health-Token: <HEALTH_TOKEN>
  *
- * Utile au premier déploiement pour vérifier que :
- * - les env vars sont bien lues par Next/Passenger
- * - le fichier SQLite est accessible en lecture/écriture
- * - Payload arrive à s'initialiser
+ * Renvoie un rapport JSON minimal. AUCUNE info sensible exposée :
+ * - Pas de chemin absolu (cwd, expected_file)
+ * - Pas de message d'erreur brut
+ * - Juste des booléens et catégories
  *
- * À SUPPRIMER ou protéger une fois la prod stable (route publique).
+ * À retirer ou désactiver une fois la prod stable.
  */
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
@@ -26,58 +28,55 @@ type HealthReport = {
     has_DATABASE_URI: boolean
     has_PAYLOAD_SECRET: boolean
     PAYLOAD_PUSH: string | null
-    NEXT_PUBLIC_SERVER_URL: string | null
-    PAYLOAD_PUBLIC_SERVER_URL: string | null
+    has_NEXT_PUBLIC_SERVER_URL: boolean
     node_version: string
-    cwd: string
   }
   sqlite: {
-    expected_file: string | null
+    relative_path: string | null
     file_exists: boolean | null
     file_size_bytes: number | null
-    readable: boolean | null
     writable: boolean | null
     parent_writable: boolean | null
-    error: string | null
   }
   payload: {
     can_init: boolean | null
     collections_count: number | null
-    error: string | null
+    error_category: string | null
   }
   notes: string[]
 }
 
-const computeSqliteFilePath = (uri: string | undefined): string | null => {
-  if (!uri) return null
-  // Format LibSQL : file:./memphis.db ou file:/abs/path/memphis.db
-  if (uri.startsWith('file:')) {
-    const p = uri.slice(5).replace(/^\/\//, '')
-    return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p)
-  }
-  return uri
+const categorizeError = (msg: string): string => {
+  if (msg.includes('SQLITE_CANTOPEN')) return 'sqlite_cantopen'
+  if (msg.includes('SQLITE_READONLY')) return 'sqlite_readonly'
+  if (msg.includes('no such table')) return 'schema_missing'
+  if (msg.includes('PAYLOAD_SECRET')) return 'missing_secret'
+  if (msg.toLowerCase().includes('database')) return 'database_generic'
+  return 'unknown'
 }
 
-const checkFs = async (filepath: string) => {
-  const result: Partial<HealthReport['sqlite']> = {
-    file_exists: false,
-    file_size_bytes: null,
-    readable: null,
-    writable: null,
-    parent_writable: null,
+const computeSqliteFilePath = (uri: string | undefined): string | null => {
+  if (!uri) return null
+  if (uri.startsWith('file:')) {
+    return uri.slice(5).replace(/^\/\//, '')
+  }
+  return null
+}
+
+const checkFs = async (relativePath: string) => {
+  const abs = path.resolve(process.cwd(), relativePath)
+  const result = {
+    file_exists: false as boolean | null,
+    file_size_bytes: null as number | null,
+    writable: null as boolean | null,
+    parent_writable: null as boolean | null,
   }
   try {
-    const stat = await fs.stat(filepath)
+    const stat = await fs.stat(abs)
     result.file_exists = true
     result.file_size_bytes = stat.size
     try {
-      await fs.access(filepath, fs.constants.R_OK)
-      result.readable = true
-    } catch {
-      result.readable = false
-    }
-    try {
-      await fs.access(filepath, fs.constants.W_OK)
+      await fs.access(abs, fs.constants.W_OK)
       result.writable = true
     } catch {
       result.writable = false
@@ -86,7 +85,7 @@ const checkFs = async (filepath: string) => {
     result.file_exists = false
   }
   try {
-    await fs.access(path.dirname(filepath), fs.constants.W_OK)
+    await fs.access(path.dirname(abs), fs.constants.W_OK)
     result.parent_writable = true
   } catch {
     result.parent_writable = false
@@ -94,59 +93,74 @@ const checkFs = async (filepath: string) => {
   return result
 }
 
-export const GET = async () => {
+const isAuthorized = (req: NextRequest): boolean => {
+  const expected = process.env.HEALTH_TOKEN
+  if (!expected) {
+    // Si pas de token configuré, on autorise UNIQUEMENT en dev pour éviter
+    // un endpoint public en prod par accident.
+    return process.env.NODE_ENV !== 'production'
+  }
+  const fromQuery = req.nextUrl.searchParams.get('token')
+  const fromHeader = req.headers.get('x-health-token')
+  return fromQuery === expected || fromHeader === expected
+}
+
+export const GET = async (req: NextRequest) => {
+  if (!isAuthorized(req)) {
+    return NextResponse.json(
+      { error: 'Forbidden', hint: 'Provide HEALTH_TOKEN via ?token= or X-Health-Token header' },
+      { status: 403 },
+    )
+  }
+
   const notes: string[] = []
-  const sqlitePath = computeSqliteFilePath(process.env.DATABASE_URI)
+  const sqliteRelative = computeSqliteFilePath(process.env.DATABASE_URI)
 
   const env: HealthReport['env'] = {
     NODE_ENV: process.env.NODE_ENV || null,
     has_DATABASE_URI: Boolean(process.env.DATABASE_URI),
     has_PAYLOAD_SECRET: Boolean(process.env.PAYLOAD_SECRET),
     PAYLOAD_PUSH: process.env.PAYLOAD_PUSH || null,
-    NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL || null,
-    PAYLOAD_PUBLIC_SERVER_URL: process.env.PAYLOAD_PUBLIC_SERVER_URL || null,
+    has_NEXT_PUBLIC_SERVER_URL: Boolean(process.env.NEXT_PUBLIC_SERVER_URL),
     node_version: process.version,
-    cwd: process.cwd(),
   }
 
   const sqlite: HealthReport['sqlite'] = {
-    expected_file: sqlitePath,
+    relative_path: sqliteRelative,
     file_exists: null,
     file_size_bytes: null,
-    readable: null,
     writable: null,
     parent_writable: null,
-    error: null,
   }
 
-  if (sqlitePath) {
+  if (sqliteRelative) {
     try {
-      Object.assign(sqlite, await checkFs(sqlitePath))
-    } catch (e) {
-      sqlite.error = (e as Error).message
+      Object.assign(sqlite, await checkFs(sqliteRelative))
+    } catch {
+      // ignore, restera null
     }
-  } else {
-    sqlite.error = 'DATABASE_URI vide ou format inattendu'
   }
 
-  // Tentative d'init Payload (best-effort)
   const payload: HealthReport['payload'] = {
     can_init: null,
     collections_count: null,
-    error: null,
+    error_category: null,
   }
   try {
     const { getPayload } = await import('payload')
     const config = (await import('@payload-config')).default
     const cms = await getPayload({ config })
     payload.can_init = true
-    payload.collections_count = Object.keys((cms as any).collections || {}).length
+    payload.collections_count = Object.keys(
+      (cms as { collections?: Record<string, unknown> }).collections || {},
+    ).length
   } catch (e) {
     payload.can_init = false
-    payload.error = (e as Error).message
+    payload.error_category = categorizeError((e as Error).message)
+    // Log la vraie erreur côté serveur (visible dans stderr.log)
+    console.error('[health] Payload init failed:', e)
   }
 
-  // Conclusion
   let status: HealthReport['status'] = 'ok'
   if (!env.has_DATABASE_URI) {
     status = 'fail'
@@ -156,7 +170,11 @@ export const GET = async () => {
     status = 'fail'
     notes.push('PAYLOAD_SECRET manquant')
   }
-  if (sqlite.expected_file && sqlite.file_exists === false && sqlite.parent_writable === false) {
+  if (
+    sqlite.relative_path &&
+    sqlite.file_exists === false &&
+    sqlite.parent_writable === false
+  ) {
     status = 'fail'
     notes.push('Dossier parent du fichier SQLite NON inscriptible')
   }
@@ -166,7 +184,7 @@ export const GET = async () => {
   }
   if (payload.can_init === false) {
     status = 'fail'
-    notes.push('Payload n a pas pu s initialiser : ' + (payload.error || 'erreur inconnue'))
+    notes.push('Payload init failed (cat: ' + (payload.error_category || 'unknown') + ')')
   }
 
   const report: HealthReport = {

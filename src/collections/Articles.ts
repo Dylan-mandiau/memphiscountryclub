@@ -1,4 +1,4 @@
-import type { CollectionConfig, FieldHook } from 'payload'
+import type { CollectionConfig, FieldHook, Where } from 'payload'
 import {
   lexicalEditor,
   HeadingFeature,
@@ -8,7 +8,7 @@ import {
   UploadFeature,
   BlocksFeature,
 } from '@payloadcms/richtext-lexical'
-import { hasRole, publicRead } from '../access/hasRole'
+import { hasRole } from '../access/hasRole'
 
 const slugify = (s: string): string =>
   s
@@ -39,16 +39,24 @@ export const Articles: CollectionConfig = {
   },
   access: {
     read: ({ req }) => {
-      // Les visiteurs publics ne voient que les articles publiés
-      if (req.user) return publicRead({ req } as any)
+      // Admin et rédacteurs voient tous les articles (incl. brouillons/programmés).
+      // Tous les autres (visiteurs publics, gestionnaires danses/médias) ne voient
+      // que les articles PUBLIÉS dont la date est passée.
+      const role = (req.user as { role?: string } | null)?.role
+      if (role === 'admin' || role === 'redacteur') return true
       return {
-        statut: { equals: 'publie' },
-        date_publication: { less_than_equal: new Date() },
-      }
+        and: [
+          { statut: { equals: 'publie' } },
+          { date_publication: { less_than_equal: new Date() } },
+        ],
+      } as Where
     },
     create: hasRole('redacteur'),
     update: hasRole('redacteur'),
-    delete: hasRole('redacteur'),
+    // Suppression réservée à l'admin pour éviter qu'un rédacteur supprime
+    // les articles d'un autre (pas de champ "auteur" pour le moment).
+    delete: ({ req }) =>
+      (req.user as { role?: string } | null)?.role === 'admin',
   },
   fields: [
     {

@@ -23,6 +23,25 @@ import { Horaires } from './globals/Horaires'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Fail-fast — sans secret, on ne démarre pas. Évite des sessions signées
+// avec une chaîne vide (faille critique).
+const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET
+if (!PAYLOAD_SECRET) {
+  throw new Error(
+    'PAYLOAD_SECRET env variable is required (Payload refuse de démarrer sans secret).',
+  )
+}
+
+// Warning en prod si PAYLOAD_PUSH est resté à true après le premier déploiement
+// — auto-sync de schéma sur une DB en production = risque de perte de données.
+const PAYLOAD_PUSH = process.env.PAYLOAD_PUSH === 'true'
+if (PAYLOAD_PUSH && process.env.NODE_ENV === 'production') {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[payload.config] PAYLOAD_PUSH=true en production. Désactiver dès que le schéma est stable.',
+  )
+}
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -47,7 +66,7 @@ export default buildConfig({
   ],
   globals: [Banniere, Contact, Horaires],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
+  secret: PAYLOAD_SECRET,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
@@ -55,19 +74,12 @@ export default buildConfig({
     client: {
       url: process.env.DATABASE_URI || 'file:./memphis.db',
     },
-    // `push` = auto-sync du schéma au démarrage (sans migrations explicites).
-    // - Par défaut : actif en dev, inactif en prod.
-    // - Pour le premier déploiement sur une BDD vierge (o2switch),
-    //   on active explicitement via PAYLOAD_PUSH=true le temps que Payload
-    //   crée toutes les tables. À retirer ensuite et passer en mode migration.
-    push:
-      process.env.PAYLOAD_PUSH === 'true' ||
-      process.env.NODE_ENV !== 'production',
+    // `push` = auto-sync du schéma au démarrage. À désactiver en prod une
+    // fois les tables créées (passage en mode migration).
+    push: PAYLOAD_PUSH || process.env.NODE_ENV !== 'production',
   }),
   sharp,
-  upload: {
-    // PAS de limite de taille — règle métier CDC §4.2 / §10
-    limits: { fileSize: undefined as unknown as number },
-  },
+  // Pas de limite de taille — règle métier CDC §4.2 / §10. On omet `upload.limits`
+  // plutôt que de caster `undefined as unknown as number`.
   plugins: [],
 })

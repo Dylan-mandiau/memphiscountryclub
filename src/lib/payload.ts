@@ -6,8 +6,9 @@ let cached: Promise<Payload> | null = null
 let unhandledInstalled = false
 
 /**
- * Silence les unhandledRejection liés à des erreurs SQLite/IO transitoires.
- * En production, on log uniquement les rejets inattendus.
+ * Filtre process-level pour les unhandledRejection liés à SQLite.
+ * Important : on LOG quand même, on ne masque jamais silencieusement
+ * (sinon impossible de debugger une init qui foire en prod).
  */
 const installUnhandledRejectionFilter = () => {
   if (unhandledInstalled) return
@@ -20,45 +21,50 @@ const installUnhandledRejectionFilter = () => {
       msg.includes('SQLITE_LOCKED') ||
       msg.includes('SQLITE_CANTOPEN')
     ) {
-      // Erreurs SQLite transitoires (verrou, fichier non créé encore) —
-      // le caller utilise tryPayload() et bascule en fallback.
+      // Erreur SQLite transitoire — on log quand même pour traçabilité
+      console.warn('[payload][unhandledRejection][sqlite-transitoire]', msg.trim())
       return
     }
-    console.error('[unhandledRejection]', reason)
+    console.error('[payload][unhandledRejection]', reason)
   })
 }
 
+/**
+ * Init Payload (singleton). Si l'init échoue, le cache est invalidé
+ * pour que la requête suivante puisse retry — évite le "poison pill"
+ * où une promesse rejetée permanente bloque tout sans aucun log.
+ */
 export const payload = async (): Promise<Payload> => {
   installUnhandledRejectionFilter()
   if (!cached) {
-    // On garde la promesse même si elle rejette — évite de relancer
-    // une boucle d'init à chaque page chargée.
     cached = getPayload({ config })
-    cached.catch(() => {
-      /* swallow — caller utilise tryPayload */
+    cached.catch((err) => {
+      // LOG toujours, même en prod — sinon on ne saurait jamais ce qui plante
+      console.error('[payload] init failed:', err)
+      cached = null // permet de réessayer à la requête suivante
     })
   }
   return cached
 }
 
 /**
- * Variante tolérante — retourne null si Payload ne peut pas s'initialiser
- * (secret manquant, fichier SQLite inaccessible, schéma non créé, etc.).
- * Les pages publiques l'utilisent pour rester rendables même quand
- * l'admin n'est pas opérationnel.
+ * Variante tolérante — retourne null si Payload ne peut pas s'initialiser.
+ * Pages publiques l'utilisent pour rester rendables même quand l'admin
+ * n'est pas opérationnel. Log TOUJOURS (même en prod) pour observabilité.
  */
 export const tryPayload = async (): Promise<Payload | null> => {
   installUnhandledRejectionFilter()
-  if (!process.env.PAYLOAD_SECRET) return null
+  if (!process.env.PAYLOAD_SECRET) {
+    console.warn('[payload] PAYLOAD_SECRET manquant — pages en fallback')
+    return null
+  }
   try {
     return await payload()
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[payload] init failed — pages publiques en fallback :',
-        (err as Error).message,
-      )
-    }
+    console.warn(
+      '[payload] init failed — pages publiques en fallback :',
+      (err as Error).message,
+    )
     return null
   }
 }

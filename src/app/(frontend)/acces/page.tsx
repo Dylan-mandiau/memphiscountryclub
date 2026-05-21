@@ -35,7 +35,9 @@ const AccesPage = async () => {
         cours: g?.cours?.length ? g.cours : DEFAULT_HORAIRES.cours,
         transports: g?.transports?.length ? g.transports : DEFAULT_HORAIRES.transports,
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[acces] findGlobal(horaires) failed:', (err as Error).message)
+    }
   }
 
   return (

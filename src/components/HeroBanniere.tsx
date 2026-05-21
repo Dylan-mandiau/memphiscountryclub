@@ -33,17 +33,29 @@ const DEFAULT: Required<Omit<BanniereData, 'image' | 'galerie_membres'>> = {
   style: 'cote-a-cote',
 }
 
+/**
+ * Whitelist d'URL pour les CTAs éditables par l'admin (defense-in-depth
+ * contre auto-XSS via href="javascript:...").
+ */
+const safeHref = (v: string | undefined, fallback: string): string => {
+  if (!v) return fallback
+  if (v.startsWith('/')) return v
+  if (v.startsWith('https://') || v.startsWith('http://')) return v
+  if (v.startsWith('mailto:') || v.startsWith('tel:')) return v
+  return fallback
+}
+
 const CtaButtons = ({ b }: { b: BanniereData }) => (
   <div className="mt-8 flex flex-wrap gap-3">
     <Link
-      href={b.cta_lien || DEFAULT.cta_lien}
+      href={safeHref(b.cta_lien, DEFAULT.cta_lien)}
       className="rounded-pill bg-accent px-6 py-3 text-small font-medium text-white transition-colors hover:bg-accent-hover"
     >
       {b.cta_texte || DEFAULT.cta_texte}
     </Link>
     {(b.cta_secondaire_texte || DEFAULT.cta_secondaire_texte) && (
       <Link
-        href={b.cta_secondaire_lien || DEFAULT.cta_secondaire_lien}
+        href={safeHref(b.cta_secondaire_lien, DEFAULT.cta_secondaire_lien)}
         className="rounded-pill border border-border bg-background px-6 py-3 text-small font-medium text-text-primary transition-colors hover:border-text-secondary"
       >
         {b.cta_secondaire_texte || DEFAULT.cta_secondaire_texte}

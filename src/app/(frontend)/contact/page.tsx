@@ -20,7 +20,9 @@ const ContactPage = async () => {
         telephone: g.telephone || DEFAULT_CONTACT.telephone,
         adresse: g.adresse || DEFAULT_CONTACT.adresse,
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[contact] findGlobal(contact) failed:', (err as Error).message)
+    }
   }
 
   return (

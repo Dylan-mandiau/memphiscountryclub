@@ -22,7 +22,15 @@ const AlbumPage = async ({
       depth: 2,
       limit: 1,
     })
-    .catch(() => ({ docs: [] as any[] }))
+    .catch((err: unknown) => {
+      console.warn(
+        '[galerie/[slug]] find failed:',
+        (err as Error).message,
+        'slug=',
+        slug,
+      )
+      return { docs: [] as any[] }
+    })
 
   const album = found.docs[0] as any
   if (!album) notFound()

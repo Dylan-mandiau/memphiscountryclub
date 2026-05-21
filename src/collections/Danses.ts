@@ -43,12 +43,19 @@ export const Danses: CollectionConfig = {
     delete: hasRole('gestionnaire-danses'),
   },
   hooks: {
-    beforeValidate: [
-      ({ data }) => {
-        if (!data) return data
-        const hasDemo = Boolean(data.video_demo_url)
-        const hasAppr = Boolean(data.video_apprentissage_url)
-        if (!hasDemo && !hasAppr) {
+    // On utilise `beforeChange` (et pas `beforeValidate`) pour avoir accès
+    // à `originalDoc` : indispensable sur les PATCH partiels où `data` ne
+    // contient que les champs modifiés. Sinon un PATCH qui ne touche pas
+    // aux vidéos casserait la validation alors qu'elles existent en DB.
+    beforeChange: [
+      ({ data, originalDoc }) => {
+        const original = originalDoc as
+          | { video_demo_url?: string; video_apprentissage_url?: string }
+          | null
+        const demoUrl = data?.video_demo_url ?? original?.video_demo_url
+        const apprUrl =
+          data?.video_apprentissage_url ?? original?.video_apprentissage_url
+        if (!demoUrl && !apprUrl) {
           throw new Error(
             'Au moins une vidéo YouTube est requise (démo ou apprentissage).',
           )

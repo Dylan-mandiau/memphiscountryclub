@@ -17,7 +17,9 @@ const HomePage = async () => {
         slug: 'banniere',
         depth: 2,
       })) as BanniereData) || {}
-    } catch {}
+    } catch (err) {
+      console.warn('[home] findGlobal(banniere) failed:', (err as Error).message)
+    }
     try {
       const r = await cms.find({
         collection: 'articles',
@@ -27,7 +29,9 @@ const HomePage = async () => {
         depth: 1,
       })
       articles = r.docs
-    } catch {}
+    } catch (err) {
+      console.warn('[home] find(articles) failed:', (err as Error).message)
+    }
   }
 
   return (
