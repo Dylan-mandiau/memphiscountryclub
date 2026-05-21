@@ -34,6 +34,12 @@ src/payload-types.ts
 media/
 uploads/
 
+# SQLite (BDD locale + journaux WAL)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
 # Misc
 *.tsbuildinfo
 next-env.d.ts

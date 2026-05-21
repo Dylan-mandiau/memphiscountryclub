@@ -139,17 +139,23 @@ Vérification que `@payloadcms/db-mysql` n'existe pas → confirmation que Postg
 
 > **Étapes 1 & 2 — TERMINÉES ✅**
 > - Étape 1 : pré-validation locale OK, `PAYLOAD_PUSH` env var ajoutée, doublon nettoyé
-> - Étape 2 : repo Git local initialisé, commit `756bd6f` (72 fichiers, secrets vérifiés)
+> - Étape 2 : repo Git local initialisé, commits `756bd6f` + `b8e90ba`
 >
-> **Étape 3 — Préparation infra o2switch (en attente d'inputs Dylan).**
+> **Étape 2.5 — Installation PostgreSQL local pour dev (en cours).**
+>
+> Choix de Dylan : **EDB Installer Windows** (PG 16).
+>
+> 1. Dylan télécharge et installe PG 16 depuis postgresql.org/download/windows/
+> 2. Une fois installé, Claude fournit les commandes psql pour créer la DB `memphis` + user `memphis`
+> 3. Test connexion + `npm run dev` doit charger l'admin sans erreur
+>
+> **Étape 3 — Préparation infra o2switch (en parallèle).**
 >
 > Concret côté Dylan :
-> 1. **Mot de passe** du user `ufaj3133_grememphis` à fournir (ou redéfinir dans cPanel → Bases de données PostgreSQL → Utilisateurs)
+> 1. **Mot de passe** du user `ufaj3133_grememphis` — à définir/récupérer dans cPanel mais **JAMAIS le partager à Claude** (sécurité). Dylan le copiera lui-même dans les Environment variables cPanel le moment venu.
 > 2. **Créer un repo GitHub privé** `memphiscountryclub` puis me donner l'URL HTTPS — ou dire si tu préfères FTP/zip
-> 3. **Vérifier dans cPanel → Sous-domaines** que `new.memphiscountryclub.fr` est bien créé et noter le **chemin du dossier racine** (probablement `/home/ufaj3133/new.memphiscountryclub.fr` mais à confirmer)
-> 4. **SSH activé** dans cPanel → Sécurité → SSH (si pas déjà fait)
->
-> Une fois ces 4 infos en main : on enchaîne sur les Étapes 4 à 10 (upload + cPanel app + env vars + first start + admin).
+> 3. **Vérifier dans cPanel → Sous-domaines** que `new.memphiscountryclub.fr` est bien créé et noter le **chemin du dossier racine**
+> 4. **SSH activé** dans cPanel → Sécurité → SSH
 
 ---
 

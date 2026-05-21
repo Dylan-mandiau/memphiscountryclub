@@ -1,4 +1,4 @@
-import { postgresAdapter } from '@payloadcms/db-postgres'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig } from 'payload'
 import path from 'path'
@@ -51,13 +51,13 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: postgresAdapter({
-    pool: {
-      connectionString: process.env.DATABASE_URI || '',
+  db: sqliteAdapter({
+    client: {
+      url: process.env.DATABASE_URI || 'file:./memphis.db',
     },
     // `push` = auto-sync du schéma au démarrage (sans migrations explicites).
     // - Par défaut : actif en dev, inactif en prod.
-    // - Pour le premier déploiement sur un environnement vierge (o2switch),
+    // - Pour le premier déploiement sur une BDD vierge (o2switch),
     //   on active explicitement via PAYLOAD_PUSH=true le temps que Payload
     //   crée toutes les tables. À retirer ensuite et passer en mode migration.
     push:
