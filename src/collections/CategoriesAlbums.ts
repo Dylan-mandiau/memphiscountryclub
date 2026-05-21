@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { hasRole, publicRead } from '../access/hasRole'
+import { slugFromField } from '../lib/slugify'
 
 /**
  * Catégories d'albums photo/vidéo — créables librement par le
@@ -36,6 +37,12 @@ export const CategoriesAlbums: CollectionConfig = {
       type: 'text',
       required: true,
       unique: true,
+      index: true,
+      hooks: { beforeValidate: [slugFromField('nom')] },
+      admin: {
+        position: 'sidebar',
+        description: 'Généré automatiquement depuis le nom (modifiable).',
+      },
     },
   ],
 }

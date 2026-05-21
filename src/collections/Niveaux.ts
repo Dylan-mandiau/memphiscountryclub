@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { hasRole, publicRead } from '../access/hasRole'
+import { slugFromField } from '../lib/slugify'
 
 /**
  * Niveaux de danse : Débutant, Intermédiaire, Démonstration.
@@ -31,8 +32,11 @@ export const Niveaux: CollectionConfig = {
       type: 'text',
       required: true,
       unique: true,
+      index: true,
+      hooks: { beforeValidate: [slugFromField('nom')] },
       admin: {
-        description: 'Identifiant URL (ex: debutant, intermediaire)',
+        position: 'sidebar',
+        description: 'Généré automatiquement depuis le nom (modifiable).',
       },
     },
     {

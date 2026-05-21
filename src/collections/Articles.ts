@@ -1,4 +1,4 @@
-import type { CollectionConfig, FieldHook, Where } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 import {
   lexicalEditor,
   HeadingFeature,
@@ -9,20 +9,9 @@ import {
   BlocksFeature,
 } from '@payloadcms/richtext-lexical'
 import { hasRole } from '../access/hasRole'
+import { slugFromField } from '../lib/slugify'
 
-const slugify = (s: string): string =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-
-const generateSlug: FieldHook = ({ data, value }) => {
-  if (value) return value
-  if (data?.titre) return slugify(String(data.titre))
-  return value
-}
+const generateSlug = slugFromField('titre')
 
 /**
  * Articles / actualités — affichés sur la page d'accueil (CDC §4.3).
