@@ -33,10 +33,16 @@ export const Niveaux: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
+      // Hook serveur (filet de sécurité, ex: création via API)
       hooks: { beforeValidate: [slugFromField('nom')] },
       admin: {
         position: 'sidebar',
         description: 'Généré automatiquement depuis le nom (modifiable).',
+        // Custom client component → auto-fill en temps réel dans le formulaire
+        custom: { sourceField: 'nom' },
+        components: {
+          Field: '@/components/admin/SlugField',
+        },
       },
     },
     {

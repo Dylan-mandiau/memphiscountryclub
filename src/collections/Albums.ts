@@ -35,7 +35,14 @@ export const Albums: CollectionConfig = {
       unique: true,
       index: true,
       hooks: { beforeValidate: [generateSlug] },
-      admin: { position: 'sidebar' },
+      admin: {
+        position: 'sidebar',
+        description: 'Généré automatiquement depuis le titre (modifiable).',
+        custom: { sourceField: 'titre_album' },
+        components: {
+          Field: '@/components/admin/SlugField',
+        },
+      },
     },
     {
       name: 'categorie',

@@ -42,6 +42,10 @@ export const CategoriesAlbums: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description: 'Généré automatiquement depuis le nom (modifiable).',
+        custom: { sourceField: 'nom' },
+        components: {
+          Field: '@/components/admin/SlugField',
+        },
       },
     },
   ],

@@ -7,6 +7,7 @@ import {
   LinkFeature,
   UploadFeature,
   BlocksFeature,
+  RelationshipFeature,
 } from '@payloadcms/richtext-lexical'
 import { hasRole } from '../access/hasRole'
 import { slugFromField } from '../lib/slugify'
@@ -60,7 +61,14 @@ export const Articles: CollectionConfig = {
       unique: true,
       index: true,
       hooks: { beforeValidate: [generateSlug] },
-      admin: { position: 'sidebar' },
+      admin: {
+        position: 'sidebar',
+        description: 'Généré automatiquement depuis le titre (modifiable).',
+        custom: { sourceField: 'titre' },
+        components: {
+          Field: '@/components/admin/SlugField',
+        },
+      },
     },
     {
       name: 'image_une',
@@ -88,7 +96,21 @@ export const Articles: CollectionConfig = {
           FixedToolbarFeature(),
           InlineToolbarFeature(),
           LinkFeature({}),
-          UploadFeature({}),
+          // Upload : explicite la collection cible (sinon le picker ne sait
+          // pas où chercher et le bouton "Télécharger" reste inactif).
+          UploadFeature({
+            collections: {
+              media: {
+                fields: [],
+              },
+            },
+          }),
+          // Relation : permet d'insérer dans l'article un lien vers une
+          // danse / album / autre article (rendu côté front comme un lien
+          // riche). Si on ne précise rien, ça ne propose RIEN. On whiteliste.
+          RelationshipFeature({
+            enabledCollections: ['danses', 'albums', 'articles'],
+          }),
           BlocksFeature({ blocks: [] }),
         ],
       }),

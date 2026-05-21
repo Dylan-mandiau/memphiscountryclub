@@ -70,7 +70,11 @@ export const Danses: CollectionConfig = {
       hooks: { beforeValidate: [generateSlug] },
       admin: {
         position: 'sidebar',
-        description: 'Généré automatiquement depuis le titre.',
+        description: 'Généré automatiquement depuis le titre (modifiable).',
+        custom: { sourceField: 'titre' },
+        components: {
+          Field: '@/components/admin/SlugField',
+        },
       },
     },
     {
