@@ -1,4 +1,4 @@
-import type { Access } from 'payload'
+import type { Access, FieldAccess } from 'payload'
 import type { UserRole } from './types'
 
 export const isAdmin: Access = ({ req }) => {
@@ -6,10 +6,11 @@ export const isAdmin: Access = ({ req }) => {
   return role === 'admin'
 }
 
-export const isAdminFieldLevel = ({
-  req,
-}: {
-  req: { user: { role?: UserRole } | null }
-}): boolean => {
-  return req.user?.role === 'admin'
+/**
+ * Accès au niveau champ — utilisé pour empêcher la modification d'un
+ * champ par tout autre rôle que l'admin (ex : `role` dans Users).
+ */
+export const isAdminFieldLevel: FieldAccess = ({ req }) => {
+  const role = (req.user as { role?: UserRole } | null)?.role
+  return role === 'admin'
 }
