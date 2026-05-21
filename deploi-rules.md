@@ -14,7 +14,7 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 | Hébergeur | o2switch (mutualisé cPanel) |
 | Runtime | Node.js 22.x LTS (ou 20.x si 22 indisponible — éviter 24.x : versions impaires non-LTS) |
 | Process manager | Phusion Passenger (via NodeJS Selector cPanel) |
-| Base de données | PostgreSQL — DB `ufaj3133_memphis` / user `ufaj3133_gremphis` |
+| Base de données | PostgreSQL — DB `ufaj3133_memphis` / user `ufaj3133_grememphis` |
 | User cPanel | `ufaj3133` |
 | Chemins typiques | `/home/ufaj3133/new.memphiscountryclub.fr/` |
 
@@ -27,7 +27,7 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 1. **Sous-domaine** créé et pointé sur un dossier dédié (ex. `/home/ufaj3133/new.memphiscountryclub.fr`).
 2. **Base PostgreSQL** créée via *Base de données PostgreSQL* :
    - DB : `ufaj3133_memphis`
-   - User : `ufaj3133_gremphis` avec mot de passe fort
+   - User : `ufaj3133_grememphis` avec mot de passe fort
    - Privilèges : ALL sur la DB
    - Vérifier que **PostgreSQL est bien le moteur** (et pas MySQL). Si la BDD est MySQL, voir §9.
 3. **SSL** : activer Let's Encrypt sur le sous-domaine via *SSL/TLS Status* → AutoSSL.
@@ -42,7 +42,7 @@ Règles et procédure de déploiement de **new.memphiscountryclub.fr** sur **o2s
 | Variable | Valeur exemple | Notes |
 |---|---|---|
 | `NODE_ENV` | `production` | Géré aussi par « Application mode = Production » |
-| `DATABASE_URI` | `postgresql://ufaj3133_gremphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis` | User `_gremphis`, DB `_memphis`. Encoder le mdp si caractères spéciaux. |
+| `DATABASE_URI` | `postgresql://ufaj3133_grememphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis` | User `_grememphis`, DB `_memphis`. Encoder le mdp si caractères spéciaux. |
 | `PAYLOAD_SECRET` | (96 hex aléatoires) | Générer avec `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. **Ne jamais réutiliser** entre dev et prod. |
 | `PAYLOAD_PUSH` | `true` au premier déploiement, puis `false` | **Crée automatiquement le schéma BDD au démarrage** sur une base vierge. À désactiver dès que les tables existent (passage en mode migration). |
 | `NEXT_PUBLIC_SERVER_URL` | `https://new.memphiscountryclub.fr` | Public — utilisé par metadataBase |
@@ -174,7 +174,7 @@ touch tmp/restart.txt    # Passenger redémarre au prochain hit
 3. **Backups** — programmer dans cPanel → *Cron Jobs* un dump quotidien :
 
    ```cron
-   0 3 * * * /usr/bin/pg_dump -U ufaj3133_gremphis ufaj3133_memphis | gzip > /home/ufaj3133/backups/memphis-$(date +\%F).sql.gz && find /home/ufaj3133/backups -mtime +30 -delete
+   0 3 * * * /usr/bin/pg_dump -U ufaj3133_grememphis ufaj3133_memphis | gzip > /home/ufaj3133/backups/memphis-$(date +\%F).sql.gz && find /home/ufaj3133/backups -mtime +30 -delete
    ```
 
 4. **HTTPS forcé** — activer la redirection HTTPS dans cPanel *Domains* après émission du certificat.
@@ -188,7 +188,7 @@ touch tmp/restart.txt    # Passenger redémarre au prochain hit
 | Symptôme | Cause probable | Fix |
 |---|---|---|
 | `503 Application failed to start` | Erreur dans `server.js` ou build manquant | SSH → activer venv → consulter `stderr.log` ; relancer `npm run deploy:build` |
-| `cannot connect to Postgres` | DB inaccessible ou URI mal formée | Vérifier `DATABASE_URI` (host = `localhost`, port 5432), tester avec `psql -h localhost -U ufaj3133_gremphis -d ufaj3133_memphis` |
+| `cannot connect to Postgres` | DB inaccessible ou URI mal formée | Vérifier `DATABASE_URI` (host = `localhost`, port 5432), tester avec `psql -h localhost -U ufaj3133_grememphis -d ufaj3133_memphis` |
 | `missing secret key` | `PAYLOAD_SECRET` absent | Ajouter dans Environment variables + Restart |
 | Images 404 | `public/` mal uploadé OU `next.config.mjs` remotePatterns manquant | Vérifier que le dossier `public/icons/` existe, ajouter le domaine au config |
 | Upload bloqué > 50 MB | `LimitRequestBody` ou reverse proxy o2switch | Vérifier `.htaccess`, contacter le support si problème reste |

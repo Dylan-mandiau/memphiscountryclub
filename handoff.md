@@ -49,9 +49,10 @@ Next.js 15.4 + Payload CMS 3 (intégré natif) + PostgreSQL + React 19 + Tailwin
 - [x] ~~**Cleanup doublon `deploy-rules.md`**~~ — ✅ supprimé (était une vieille archi en 2 apps séparées)
 - [x] ~~**Activer `push` Payload pour le premier déploiement**~~ — ✅ `payload.config.ts` accepte désormais `PAYLOAD_PUSH=true` via env
 - [x] ~~**Mettre à jour `.env.example` + `deploi-rules.md`**~~ — ✅ nouvelle var `PAYLOAD_PUSH` documentée
-- [x] ~~**Vérifier le user PostgreSQL**~~ — ✅ confirmé : DB `ufaj3133_memphis`, user `ufaj3133_gremphis`
-- [ ] **Récupérer le mot de passe** du user `ufaj3133_gremphis` pour construire `DATABASE_URI`  ← **action Dylan**
-- [ ] **Repo Git distant** (GitHub recommandé) pour upload via `git clone` sur o2switch
+- [x] ~~**Vérifier le user PostgreSQL**~~ — ✅ confirmé : DB `ufaj3133_memphis`, user `ufaj3133_grememphis`
+- [ ] **Récupérer le mot de passe** du user `ufaj3133_grememphis` pour construire `DATABASE_URI`  ← **action Dylan**
+- [x] ~~**Repo Git local initialisé**~~ — ✅ branche `main`, commit initial `756bd6f` (72 fichiers, 0 secret leaké)
+- [ ] **Repo Git distant** (GitHub privé recommandé) pour permettre `git clone` depuis o2switch  ← **action Dylan**
 - [ ] **Création de l'application Node.js dans cPanel** (formulaire NodeJS Selector)
 - [ ] **Renseigner les variables d'environnement** dans NodeJS Selector
 - [ ] **Install + build sur o2switch** via Terminal cPanel
@@ -101,7 +102,7 @@ scripts/seed.ts                — Seed niveaux / saisons / catégories
 
 ```
 NODE_ENV               = production
-DATABASE_URI           = postgresql://ufaj3133_gremphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis
+DATABASE_URI           = postgresql://ufaj3133_grememphis:MOT_DE_PASSE@localhost:5432/ufaj3133_memphis
 PAYLOAD_SECRET         = <96 hex aléatoires, généré spécifiquement pour la prod>
 NEXT_PUBLIC_SERVER_URL = https://new.memphiscountryclub.fr
 ```
@@ -125,8 +126,8 @@ Vérification que `@payloadcms/db-mysql` n'existe pas → confirmation que Postg
 
 | Sujet | Statut | Commentaire |
 |---|---|---|
-| ~~Typo user BDD~~ | ✅ Résolu | DB `ufaj3133_memphis`, user `ufaj3133_gremphis` |
-| Mot de passe `ufaj3133_gremphis` | À fournir | Nécessaire pour construire `DATABASE_URI` |
+| ~~Typo user BDD~~ | ✅ Résolu | DB `ufaj3133_memphis`, user `ufaj3133_grememphis` |
+| Mot de passe `ufaj3133_grememphis` | À fournir | Nécessaire pour construire `DATABASE_URI` |
 | `PAYLOAD_SECRET` production | À générer | Doit être DIFFÉRENT de celui du dev — règle de sécurité deploi-rules.md §7 |
 | Repo Git distant | À créer | GitHub privé recommandé pour `git clone` sur o2switch (alternative : upload FTP zippé) |
 | Doublon `deploy-rules.md` | À nettoyer | Garder `deploi-rules.md` (français), supprimer le doublon anglais |
@@ -136,19 +137,19 @@ Vérification que `@payloadcms/db-mysql` n'existe pas → confirmation que Postg
 
 ## 6. Prochaine action immédiate 🎯
 
-> **Étape 1 — TERMINÉE ✅** : pré-validation locale OK, doublon nettoyé, schéma push prêt pour le 1er déploiement.
+> **Étapes 1 & 2 — TERMINÉES ✅**
+> - Étape 1 : pré-validation locale OK, `PAYLOAD_PUSH` env var ajoutée, doublon nettoyé
+> - Étape 2 : repo Git local initialisé, commit `756bd6f` (72 fichiers, secrets vérifiés)
 >
-> **Étape 2 — Préparation Git + actions Dylan en parallèle.**
+> **Étape 3 — Préparation infra o2switch (en attente d'inputs Dylan).**
 >
-> Concret côté Claude :
-> 1. Initialiser le repo Git local + commit propre de tout le scaffold
-> 2. Vérifier que `.gitignore` exclut bien `.env.local`, `node_modules/`, `.next/`, `uploads/`
+> Concret côté Dylan :
+> 1. **Mot de passe** du user `ufaj3133_grememphis` à fournir (ou redéfinir dans cPanel → Bases de données PostgreSQL → Utilisateurs)
+> 2. **Créer un repo GitHub privé** `memphiscountryclub` puis me donner l'URL HTTPS — ou dire si tu préfères FTP/zip
+> 3. **Vérifier dans cPanel → Sous-domaines** que `new.memphiscountryclub.fr` est bien créé et noter le **chemin du dossier racine** (probablement `/home/ufaj3133/new.memphiscountryclub.fr` mais à confirmer)
+> 4. **SSH activé** dans cPanel → Sécurité → SSH (si pas déjà fait)
 >
-> Concret côté Dylan (à faire en parallèle) :
-> 1. **Vérifier dans cPanel** le nom exact du user PostgreSQL — est-ce `ufaj3133_memphis` ou bien `ufaj3133_memhpis` (typo) ?
-> 2. **Récupérer ou définir** le mot de passe du user PostgreSQL
-> 3. **Créer un repo GitHub privé** `memphiscountryclub` (recommandé pour `git clone` sur o2switch)
-> 4. **Vérifier que le sous-domaine** `new.memphiscountryclub.fr` est bien créé dans cPanel et pointe vers `/home/ufaj3133/new.memphiscountryclub.fr`
+> Une fois ces 4 infos en main : on enchaîne sur les Étapes 4 à 10 (upload + cPanel app + env vars + first start + admin).
 
 ---
 
