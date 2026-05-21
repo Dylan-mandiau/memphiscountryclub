@@ -55,8 +55,8 @@ Next.js 15.4 + Payload CMS 3 (intégré natif) + **SQLite** (file-based) + React
 - [x] ~~**Mettre à jour `.env.example` + `deploi-rules.md`**~~ — ✅ nouvelle var `PAYLOAD_PUSH` documentée
 - [x] ~~**Crédentials PostgreSQL**~~ — ✅ abandonné : on est passé à SQLite (file-based, aucun mdp BDD à gérer)
 - [ ] **Supprimer la BDD PostgreSQL** `ufaj3133_memphis` dans cPanel (plus utilisée)  ← **action Dylan (non bloquant)**
-- [x] ~~**Repo Git local initialisé**~~ — ✅ branche `main`, commit initial `756bd6f` (72 fichiers, 0 secret leaké)
-- [ ] **Repo Git distant** (GitHub privé recommandé) pour permettre `git clone` depuis o2switch  ← **action Dylan**
+- [x] ~~**Repo Git local initialisé**~~ — ✅ branche `main`
+- [x] ~~**Repo GitHub distant**~~ — ✅ https://github.com/Dylan-mandiau/memphiscountryclub (privé), 4 commits poussés
 - [ ] **Création de l'application Node.js dans cPanel** (formulaire NodeJS Selector)
 - [ ] **Renseigner les variables d'environnement** dans NodeJS Selector
 - [ ] **Install + build sur o2switch** via Terminal cPanel
