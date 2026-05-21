@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* === Palette chaleureuse — modernité + country sans cliché === */
+
+    /* Fonds : crème + beige tiède au lieu du blanc froid */
+    --color-background:   #FBF7F0;
+    --color-surface:      #F4ECDF;
+    --color-surface-alt:  #EFE4D1;
+    --color-border:       #E6DBC9;
+
+    /* Texte : bruns chauds au lieu du noir */
+    --color-text-primary:    #2A1810;
+    --color-text-secondary:  #6B5B47;
+    --color-text-muted:      #A89B85;
+
+    /* Accent : terracotta / sienne brûlée — chaleur sans agression */
+    --color-accent:        #B8430E;
+    --color-accent-light:  #FCE9D9;
+    --color-accent-hover:  #9A3608;
+    --color-accent-soft:   #F5C9A8;
+
+    /* Accent secondaire chaud — moutarde douce pour contrastes ponctuels */
+    --color-accent-2:      #C47F2C;
+    --color-accent-2-light:#FBE9CC;
+
+    /* États */
+    --color-success:  #3F7A4F;
+    --color-warning:  #B7791F;
+    --color-error:    #B8430E;
+
+    /* Typographie — variables chargées par next/font dans layout.tsx */
+    --font-display: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+    --font-body:    var(--font-inter), system-ui, -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', monospace;
+
+    /* Ombres chaudes — teintées brun au lieu de noir pur */
+    --shadow-card:   0 4px 16px -2px rgba(74, 45, 30, 0.10);
+    --shadow-hero:   0 12px 40px -8px rgba(74, 45, 30, 0.18);
+    --shadow-soft:   0 1px 3px rgba(74, 45, 30, 0.06);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* Tap target minimum 44px sur mobile (cf. design-md PWA) */
+  @media (max-width: 768px) {
+    button, a, input, select { min-height: 44px; }
+  }
+
+  /* Sélection texte teintée terracotta */
+  ::selection {
+    background: var(--color-accent-light);
+    color: var(--color-text-primary);
+  }
+}
