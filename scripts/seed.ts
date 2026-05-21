@@ -36,17 +36,33 @@ const loadEnvFile = (filename: string): void => {
   }
 }
 
-if (process.env.NODE_ENV !== 'production') {
-  loadEnvFile('.env.local')
-}
+// On charge à la fois `.env.local` (dev) et `.env` (NodeJS Selector cPanel écrit
+// les env vars dans ce fichier). Les env vars déjà définies dans process.env ne
+// sont JAMAIS écrasées (priorité venv > fichiers).
+loadEnvFile('.env.local')
+loadEnvFile('.env')
 
-// === Vérification des env vars critiques ===
+// === Vérification des env vars critiques (avec log lisible) ===
+console.log('[seed] Env check :')
+console.log('  NODE_ENV =', process.env.NODE_ENV || '(unset)')
+console.log('  DATABASE_URI present :', Boolean(process.env.DATABASE_URI))
+console.log(
+  '  DATABASE_URI value (path only) :',
+  process.env.DATABASE_URI?.replace(/^file:/, '') || '(unset)',
+)
+console.log('  PAYLOAD_SECRET present :', Boolean(process.env.PAYLOAD_SECRET))
+console.log('  PAYLOAD_PUSH =', process.env.PAYLOAD_PUSH || '(unset)')
+console.log('  process.cwd() =', process.cwd())
+
 if (!process.env.PAYLOAD_SECRET) {
-  console.error('[seed] ❌ PAYLOAD_SECRET manquant. Configure-le avant de lancer le seed.')
+  console.error('\n[seed] ❌ PAYLOAD_SECRET manquant.')
+  console.error('  Sur o2switch : la var doit être dans NodeJS Selector,')
+  console.error('  ET un fichier .env doit exister dans l\'app root.')
+  console.error('  Vérifie : ls -la .env')
   process.exit(1)
 }
 if (!process.env.DATABASE_URI) {
-  console.error('[seed] ❌ DATABASE_URI manquant.')
+  console.error('\n[seed] ❌ DATABASE_URI manquant.')
   process.exit(1)
 }
 

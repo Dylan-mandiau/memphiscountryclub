@@ -23,6 +23,27 @@ import { Horaires } from './globals/Horaires'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+/**
+ * Résout le chemin SQLite en ABSOLU.
+ * - Si DATABASE_URI est déjà absolu (file:/abs/path), on garde tel quel.
+ * - Si relatif (file:./memphis.db), on le résout par rapport à la racine
+ *   du projet (parent de `src/`), PAS par rapport à process.cwd().
+ *
+ * Évite que Passenger spawn server.js avec un CWD différent et que la
+ * DB soit créée ailleurs que là où le seed/tools la cherchent.
+ */
+const resolveDatabaseUri = (uri: string | undefined): string => {
+  const fallback = 'file:' + path.resolve(dirname, '..', 'memphis.db')
+  if (!uri) return fallback
+  if (!uri.startsWith('file:')) return uri
+  const rel = uri.slice(5).replace(/^\/\//, '')
+  if (path.isAbsolute(rel)) return uri
+  // Résout par rapport au parent de src/ = la racine du projet
+  return 'file:' + path.resolve(dirname, '..', rel)
+}
+
+const DATABASE_URI_ABS = resolveDatabaseUri(process.env.DATABASE_URI)
+
 // Fail-fast — sans secret, on ne démarre pas. Évite des sessions signées
 // avec une chaîne vide (faille critique).
 const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET
@@ -72,7 +93,7 @@ export default buildConfig({
   },
   db: sqliteAdapter({
     client: {
-      url: process.env.DATABASE_URI || 'file:./memphis.db',
+      url: DATABASE_URI_ABS,
     },
     // `push` = auto-sync du schéma au démarrage. À désactiver en prod une
     // fois les tables créées (passage en mode migration).
