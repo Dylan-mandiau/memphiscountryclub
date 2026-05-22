@@ -43,6 +43,16 @@ type HealthReport = {
     collections_count: number | null
     error_category: string | null
   }
+  // Diag headers proxy — vérifier qu'Apache transmet X-Forwarded-Proto=https
+  // et que server.js a propagé le scheme à Next/Payload (cf. fix redirect).
+  request: {
+    host: string | null
+    x_forwarded_proto: string | null
+    x_forwarded_host: string | null
+    x_forwarded_for: string | null
+    next_url_protocol: string
+    next_url_origin: string
+  }
   notes: string[]
 }
 
@@ -187,12 +197,27 @@ export const GET = async (req: NextRequest) => {
     notes.push('Payload init failed (cat: ' + (payload.error_category || 'unknown') + ')')
   }
 
+  const request: HealthReport['request'] = {
+    host: req.headers.get('host'),
+    x_forwarded_proto: req.headers.get('x-forwarded-proto'),
+    x_forwarded_host: req.headers.get('x-forwarded-host'),
+    x_forwarded_for: req.headers.get('x-forwarded-for'),
+    next_url_protocol: req.nextUrl.protocol,
+    next_url_origin: req.nextUrl.origin,
+  }
+  if (request.x_forwarded_proto && request.next_url_protocol !== 'https:') {
+    notes.push(
+      'X-Forwarded-Proto reçu mais next_url_protocol pas https — vérifier le shim trust-proxy de server.js',
+    )
+  }
+
   const report: HealthReport = {
     status,
     timestamp: new Date().toISOString(),
     env,
     sqlite,
     payload,
+    request,
     notes,
   }
 
