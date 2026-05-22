@@ -63,7 +63,26 @@ if (PAYLOAD_PUSH && process.env.NODE_ENV === 'production') {
   )
 }
 
+// URL canonique du site — DOIT être définie en prod derrière un reverse proxy
+// TLS-terminating (Apache/Passenger sur o2switch). Sans ça, Payload tente de
+// la déduire à partir des headers : il voit `http://` alors que le browser
+// est en `https://`, ce qui casse les cookies (flag Secure), la CSRF, et
+// peut générer des `Location: http://...` 30x → boucle avec le « Force HTTPS »
+// Apache (cause probable du `ERR_TOO_MANY_REDIRECTS` sur les POST admin).
+const SERVER_URL =
+  process.env.PAYLOAD_PUBLIC_SERVER_URL || process.env.NEXT_PUBLIC_SERVER_URL || undefined
+
+// Origines autorisées pour CSRF + CORS. Sans whitelist, Payload rejette les
+// POST cross-origin internes (admin → /api/*). Inclut l'URL canonique de
+// prod et le dev local.
+const TRUSTED_ORIGINS = [SERVER_URL, 'http://localhost:3000'].filter(
+  (origin): origin is string => typeof origin === 'string' && origin.length > 0,
+)
+
 export default buildConfig({
+  serverURL: SERVER_URL,
+  csrf: TRUSTED_ORIGINS,
+  cors: TRUSTED_ORIGINS,
   admin: {
     user: Users.slug,
     importMap: { baseDir: path.resolve(dirname) },
